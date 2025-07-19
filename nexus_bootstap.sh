@@ -227,9 +227,38 @@ collect_node_ids() {
     local nodeids=()
     
     echo -e "\n${PURPLE}=== Node ID Configuration ===${NC}"
-    echo -e "${CYAN}You can:${NC}"
+    
+    # Check if default config file exists
+    if [[ -f "$NODE_IDS_FILE" ]]; then
+        local file_node_count=$(grep -c '^[a-zA-Z0-9]' "$NODE_IDS_FILE" 2>/dev/null || echo 0)
+        echo -e "${GREEN}✓ Found existing Node IDs file: $NODE_IDS_FILE${NC}"
+        echo -e "${CYAN}File contains $file_node_count Node IDs${NC}"
+        
+        if [[ $file_node_count -ge $node_count ]]; then
+            read -p "Use existing Node IDs from config file? (y/n, default: y): " use_default
+            use_default=${use_default:-y}  # Default to 'y' if empty
+            
+            if [[ "$use_default" == "y" || "$use_default" == "Y" ]]; then
+                while IFS= read -r line && [[ ${#nodeids[@]} -lt $node_count ]]; do
+                    line=$(echo "$line" | xargs) # trim whitespace
+                    if [[ -n "$line" && "$line" =~ ^[a-zA-Z0-9]+$ ]]; then
+                        nodeids+=("$line")
+                    fi
+                done < "$NODE_IDS_FILE"
+                
+                echo -e "${GREEN}✓ Loaded ${#nodeids[@]} Node IDs from existing file${NC}"
+                # Export NODE_IDS array for use in other functions
+                NODE_IDS=("${nodeids[@]}")
+                return 0
+            fi
+        else
+            echo -e "${YELLOW}⚠ File has fewer Node IDs ($file_node_count) than needed ($node_count)${NC}"
+        fi
+    fi
+    
+    echo -e "${CYAN}Choose input method:${NC}"
     echo -e "${CYAN}1) Enter Node IDs manually${NC}"
-    echo -e "${CYAN}2) Load from file (one per line)${NC}"
+    echo -e "${CYAN}2) Load from file (specify path)${NC}"
     
     read -p "Select option (1/2): " input_method
     
