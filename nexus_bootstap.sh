@@ -324,7 +324,7 @@ create_docker_compose() {
     echo -e "\n${BLUE}=== Creating Docker Compose Configuration ===${NC}"
     
     # Calculate resource allocation per node
-    local memory_per_node_mb=$((5 * 1024))  # 5GB per node
+    local memory_per_node_mb=$((2 * 1024))  # 2GB per node
     local cpu_per_node=$(echo "scale=2; 2.0 / $node_count" | bc -l 2>/dev/null || echo "0.5")
     
     cat > "$COMPOSE_FILE" << EOF
@@ -357,7 +357,7 @@ EOF
           memory: ${memory_per_node_mb}m
           cpus: '$cpu_per_node'
         reservations:
-          memory: $((memory_per_node_mb / 2))m
+          memory: $((memory_per_node_mb / 4))m
           cpus: '0.1'
     restart: unless-stopped
     networks:
@@ -408,7 +408,7 @@ create_env_file() {
 COMPOSE_PROJECT_NAME=nexus-cluster
 DOCKER_PLATFORM=$DOCKER_PLATFORM
 NODE_COUNT=${#NODE_IDS[@]}
-TOTAL_MEMORY_LIMIT=$((${#NODE_IDS[@]} * 5))g
+TOTAL_MEMORY_LIMIT=$((${#NODE_IDS[@]} * 2))g
 TOTAL_CPU_LIMIT=2.0
 
 # System Information
@@ -492,10 +492,10 @@ validate_config() {
         return 1
     fi
     
-    # Memory validation (5GB per node)
-    local memory_per_node_mb=$((5 * 1024))
+    # Memory validation (2GB per node)
+    local memory_per_node_mb=$((2 * 1024))
     local total_memory_required=$((memory_per_node_mb * node_count))
-    echo -e "${CYAN}Memory allocation: 5GB per node${NC}"
+    echo -e "${CYAN}Memory allocation: 2GB per node${NC}"
     echo -e "${CYAN}Total memory required: $((total_memory_required / 1024))GB${NC}"
     
     # Check if bc is available for CPU calculation
@@ -535,8 +535,8 @@ main_wizard() {
     echo -e "\n${PURPLE}=== Configuration Summary ===${NC}"
     echo -e "${CYAN}Platform: $OS ($ARCH) - $DOCKER_PLATFORM${NC}"
     echo -e "${CYAN}Node Count: $node_count${NC}"
-    echo -e "${CYAN}Memory per node: 5GB${NC}"
-    echo -e "${CYAN}Total Memory Required: $((node_count * 5))GB${NC}"
+    echo -e "${CYAN}Memory per node: 2GB${NC}"
+    echo -e "${CYAN}Total Memory Required: $((node_count * 2))GB${NC}"
     echo -e "${CYAN}Total CPU: 2.0 cores${NC}"
     
     echo -e "\n${CYAN}Node IDs:${NC}"
