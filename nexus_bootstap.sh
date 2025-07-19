@@ -95,6 +95,107 @@ check_docker() {
     
     echo -e "${GREEN}✓ Docker: $(docker --version | cut -d' ' -f3 | cut -d',' -f1)${NC}"
     echo -e "${GREEN}✓ Docker Compose: Available${NC}"
+    
+    # Docker 권한 및 daemon 상태 확인
+    check_docker_permissions
+}
+
+# Docker 권한 문제 해결 가이드
+show_docker_permission_fix() {
+    local error_type="$1"
+    
+    echo -e "\n${RED}=== Docker 권한 문제 해결 방법 ===${NC}"
+    
+    case "$error_type" in
+        "permission_denied")
+            echo -e "${YELLOW}권한 거부 문제가 발생했습니다.${NC}\n"
+            
+            if [[ "$OS" == "macos" ]]; then
+                echo -e "${CYAN}macOS 해결책:${NC}"
+                echo -e "1. Docker Desktop을 재시작해주세요:"
+                echo -e "   ${GREEN}Docker Desktop → Quit Docker Desktop → 다시 실행${NC}"
+                echo -e "2. Docker Desktop 설정에서 권한을 확인해주세요"
+            else
+                echo -e "${CYAN}Linux 해결책:${NC}"
+                echo -e "1. 현재 사용자를 docker 그룹에 추가:"
+                echo -e "   ${GREEN}sudo usermod -aG docker \$USER${NC}"
+                echo -e "   ${GREEN}newgrp docker${NC}"
+                echo -e "2. 또는 sudo로 실행:"
+                echo -e "   ${GREEN}sudo ./nexus_bootstap.sh${NC}"
+                echo -e "3. Docker daemon 시작 확인:"
+                echo -e "   ${GREEN}sudo systemctl start docker${NC}"
+                echo -e "   ${GREEN}sudo systemctl enable docker${NC}"
+            fi
+            ;;
+        "daemon_not_running")
+            echo -e "${YELLOW}Docker daemon이 실행되지 않고 있습니다.${NC}\n"
+            
+            if [[ "$OS" == "macos" ]]; then
+                echo -e "${CYAN}macOS 해결책:${NC}"
+                echo -e "1. Docker Desktop을 시작해주세요:"
+                echo -e "   Applications → Docker.app 실행"
+                echo -e "2. 시스템 트레이에서 Docker 아이콘이 나타날 때까지 기다려주세요"
+            else
+                echo -e "${CYAN}Linux 해결책:${NC}"
+                echo -e "1. Docker daemon 시작:"
+                echo -e "   ${GREEN}sudo systemctl start docker${NC}"
+                echo -e "2. 자동 시작 설정:"
+                echo -e "   ${GREEN}sudo systemctl enable docker${NC}"
+                echo -e "3. 상태 확인:"
+                echo -e "   ${GREEN}sudo systemctl status docker${NC}"
+            fi
+            ;;
+    esac
+    
+    echo -e "\n${PURPLE}해결 후 다시 스크립트를 실행해주세요.${NC}"
+}
+
+# Docker 권한 및 상태 확인
+check_docker_permissions() {
+    echo -e "\n${BLUE}=== Docker 권한 및 상태 확인 ===${NC}"
+    
+    # Docker daemon 접근 테스트
+    local docker_test_output
+    local docker_test_exit_code
+    
+    docker_test_output=$(docker info 2>&1)
+    docker_test_exit_code=$?
+    
+    if [[ $docker_test_exit_code -eq 0 ]]; then
+        echo -e "${GREEN}✓ Docker daemon 접근 성공${NC}"
+        echo -e "${GREEN}✓ Docker 권한 문제 없음${NC}"
+    else
+        echo -e "${RED}✗ Docker 접근 실패${NC}"
+        
+        # 에러 타입 분석
+        if echo "$docker_test_output" | grep -q "permission denied\|Permission denied"; then
+            echo -e "${RED}✗ 권한 거부 오류 감지${NC}"
+            show_docker_permission_fix "permission_denied"
+            exit 1
+        elif echo "$docker_test_output" | grep -q "Cannot connect to the Docker daemon\|Is the docker daemon running"; then
+            echo -e "${RED}✗ Docker daemon이 실행되지 않음${NC}"
+            show_docker_permission_fix "daemon_not_running"
+            exit 1
+        elif echo "$docker_test_output" | grep -q "dial unix.*connect: no such file or directory"; then
+            echo -e "${RED}✗ Docker socket 연결 실패${NC}"
+            show_docker_permission_fix "daemon_not_running"
+            exit 1
+        else
+            echo -e "${RED}✗ 알 수 없는 Docker 오류:${NC}"
+            echo -e "${YELLOW}$docker_test_output${NC}"
+            echo -e "\n${PURPLE}수동으로 Docker 상태를 확인해주세요:${NC}"
+            echo -e "${GREEN}docker --version && docker info${NC}"
+            exit 1
+        fi
+    fi
+    
+    # Docker 컨테이너 실행 테스트
+    echo -e "${CYAN}Docker 컨테이너 실행 테스트 중...${NC}"
+    if docker run --rm hello-world &> /dev/null; then
+        echo -e "${GREEN}✓ Docker 컨테이너 실행 성공${NC}"
+    else
+        echo -e "${YELLOW}⚠ Docker 컨테이너 실행 테스트 실패 (네트워크 문제일 수 있음)${NC}"
+    fi
 }
 
 # 시스템 리소스 확인
