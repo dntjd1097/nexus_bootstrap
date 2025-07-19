@@ -359,7 +359,7 @@ EOF
         reservations:
           memory: $((memory_per_node_mb / 4))m
           cpus: '0.1'
-    restart: unless-stopped
+    restart: always
     networks:
       - nexus-network
     volumes:
